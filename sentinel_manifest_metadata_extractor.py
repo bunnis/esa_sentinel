@@ -52,25 +52,25 @@ class SentinelMetadataExtractor:
           for sentinel_name in gr:
             if filename.startswith(sentinel_name):
               processed = True
-              self.productMetadata[filename] = self.extractGR()
+              self.productMetadata[filename.lower()] = self.extractGR()
               break
             
           for sentinel_name in raw:
             if filename.startswith(sentinel_name):
               processed = True
-              self.productMetadata[filename] = self.extractRAW()
+              self.productMetadata[filename.lower()] = self.extractRAW()
               break
             
           for sentinel_name in ocn:  
             if filename.startswith(sentinel_name):
                 processed = True
-                self.productMetadata[filename] = self.extractIWOCN()
+                self.productMetadata[filename.lower()] = self.extractIWOCN()
                 break
               
           for sentinel_name in s2:  
             if filename.startswith(sentinel_name):
                 processed = True
-                self.productMetadata[filename] = self.extractS2()
+                self.productMetadata[filename.lower()] = self.extractS2()
                 break
           if not processed:
               self.file_error_count = self.file_error_count+1
@@ -96,7 +96,7 @@ class SentinelMetadataExtractor:
         coordsy.append(split[c])
     
     for c in range(0,len(coordsx)):
-      final_list.append("["+str(coordsx[c])+","+str(coordsy[c])+"]")
+      final_list.append([str(coordsx[c]),str(coordsy[c])])
     
     #print final_list
     return final_list#lat,long
