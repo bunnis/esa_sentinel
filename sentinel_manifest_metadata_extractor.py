@@ -78,6 +78,8 @@ class SentinelMetadataExtractor:
               print "FILE NOT IN KNOWN FILES - "+str(filename)
       else:
         print "File not ending with .SAFE or .safe - "+str(filename)
+        
+    print "All Done"
 
   def parseCoordinates(self,coordinates):
     final_list = []
