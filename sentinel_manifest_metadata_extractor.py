@@ -3,16 +3,17 @@ Sentinel 1
 Sentinel 2
 Assumes there is a location where several manifests are stored
 January 2016'''
+import lxml
 from lxml import etree
 import os
 
 class SentinelMetadataExtractor:
   filepath = ''
-  metadataTree = []
-  currentTree = ""
+  tree = ""
   root = ""
   file_error_count=0
   filenames_error=[]
+  total_files=0
   
   def __init__(self, Filepath="/tmp/harvested/manifests/"):
     self.filepath = Filepath;
@@ -20,16 +21,28 @@ class SentinelMetadataExtractor:
     
   def extractMetadata(self):
     for i in os.listdir(self.filepath):
+      self.total_files = self.total_files +1
+      
       if i.endswith(".safe") or i.endswith(".SAFE"): 
-          print "processing file - "+str(i)
+          #print "processing file - "+str(i)
           
-          self.tree = etree.parse(self.filepath+"/"+str(i))
-          self.root = self.tree.getroot()
+          try: 
+            self.tree = etree.parse(self.filepath+"/"+str(i))
+            self.root = self.tree.getroot()
+          except lxml.etree.XMLSyntaxError:
+            #print 'File XML Syntax Error'
+            self.file_error_count = self.file_error_count+1
+            self.filenames_error.append(str(i))
+            continue
           
+          raw = ['S1A_S3_RAW__0SDH','S1A_IW_RAW__0SSV','S1A_IW_RAW__0SSH','S1A_IW_RAW__0SDV','S1A_IW_RAW__0SDH','S1A_EW_RAW__0SDH','S1A_EW_RAW__0SSH',
+                 'S1A_EW_RAW__0SDV','S1A_S1_RAW__0SSV','S1A_S6_RAW__0SSV','S1A_S5_RAW__0SSV']
           
-          raw = ['S1A_S3_RAW__0SDH','S1A_IW_RAW__0SSV','S1A_IW_RAW__0SSH','S1A_IW_RAW__0SDV','S1A_IW_RAW__0SDH','S1A_EW_RAW__0SDH']
           gr = ['S1A_S3_GRDH_1SDH','S1A_IW_SLC__1SSV','S1A_IW__1SSH','S1A_IW_SLC__1SDV','S1A_IW_SLC__1SDH','S1A_IW_GRDH_1SSV','S1A_IW_GRDH_1SSH',
-                'S1A_IW_GRDH_1SDV','S1A_IW_GRDH_1SDH','S1A_EW_GRDM_1SSH','S1A_EW_GRDM_1SDV','S1A_EW_GRDH_1SDH','S1A_IW_GRDH_1SDV','S1A_EW_GRDM_1SDH']
+                'S1A_IW_GRDH_1SDV','S1A_IW_GRDH_1SDH','S1A_EW_GRDM_1SSH','S1A_EW_GRDM_1SDV','S1A_EW_GRDH_1SDH','S1A_EW_GRDM_1SDH',
+                'S1A_IW_SLC__1SSH','S1A_S5_GRDH_1SSV','S1A_EW_GRDH_1SSH','S1A_S5_SLC__1SSV']
+          
+          ocn = ['S1A_IW_OCN__2SDV','S1A_WV_OCN__2SSV','S1A_IW_OCN__2SSV','S1A_EW_OCN__2SDH']
           
           processed = False
           for sentinel_name in gr:
@@ -43,18 +56,18 @@ class SentinelMetadataExtractor:
               processed = True
               self.extractRAW()
               break
+          for sentinel_name in ocn:  
+            if i.startswith(sentinel_name):
+                processed = True
+                self.extractIWOCN()
+                break
             
-          if i.startswith('S1A_IW_OCN__2SDV'):
-              processed = True
-              self.extractIWOCN()
-              break
-            
-          elif not processed:
+          if not processed:
               self.file_error_count = self.file_error_count+1
               self.filenames_error.append(str(i))
-              print "FILE NOT IN KNOW FILES - "+str(i)
+              print "FILE NOT IN KNOWN FILES - "+str(i)
       else:
-        print "Current file not ending with .SAFE or .safe - "+str(i)
+        print "File not ending with .SAFE or .safe - "+str(i)
 
     
   def extractGR(self):
@@ -190,11 +203,13 @@ class SentinelMetadataExtractor:
     return metadata
   
   def checkAllFilesParsed(self):
+    print 'Processed ' + str(self.total_files) + ' files'
     print '\n\n'
-    print "printing nr of errors and filenames"
-    print self.file_error_count
-    for i in range(0,len(self.filenames_error)):
-      print self.filenames_error[i]
+    print str(self.file_error_count) + " files had errors"
+    print 'Printing filenames'
+    
+    for j in range(0,len(self.filenames_error)):
+      print self.filenames_error[j]
     
     
     
