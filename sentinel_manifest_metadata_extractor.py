@@ -6,6 +6,7 @@ January 2016'''
 import lxml
 from lxml import etree
 import os
+import re
 
 class SentinelMetadataExtractor:
   filepath = ''
@@ -17,7 +18,7 @@ class SentinelMetadataExtractor:
   productMetadata={}
   
   def __init__(self, Filepath="/tmp/harvested/manifests/"):
-    self.filepath = Filepath;
+    self.filepath = Filepath
     
     
   def extractMetadata(self):
@@ -83,7 +84,8 @@ class SentinelMetadataExtractor:
     coordsx=[] #lat
     coordsy=[] #long
     
-    split = coordinates.strip().split(' ')
+    split = re.split(' |,',coordinates.strip())
+    #print split
     
     for c in range(0,len(split)):
       if c % 2 == 0: #pair
@@ -92,8 +94,9 @@ class SentinelMetadataExtractor:
         coordsy.append(split[c])
     
     for c in range(0,len(coordsx)):
-      final_list.append(str(coordsx[c])+","+str(coordsy[c]))
-
+      final_list.append("["+str(coordsx[c])+","+str(coordsy[c])+"]")
+    
+    #print final_list
     return final_list#lat,long
      
     
@@ -104,19 +107,19 @@ class SentinelMetadataExtractor:
     ###############S1A_IW_SLC__1SDH###############S1A_IW_GRDH_1SSV###############S1A_IW_GRDH_1SSH###############S1A_IW_GRDH_1SDV
     ###############S1A_IW_GRDH_1SDH###############S1A_EW_GRDM_1SSH###############S1A_EW_GRDM_1SDV###############S1A_EW_GRDH_1SDH
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:startTime',self.root.nsmap)
-    metadata['startTime'] = extracted[0].text
+    metadata['StartTime'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:familyName',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
-    metadata['instrumentFamilyName'] = extracted[0].text
+    metadata['InstrumentFamilyName'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel/1.1}frameSet/{http://www.esa.int/safe/sentinel/1.1}footPrint/{http://www.opengis.net/gml}coordinates',self.root.nsmap)
-    metadata['coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
     #
     return metadata
     
@@ -126,43 +129,43 @@ class SentinelMetadataExtractor:
     ###############S1A_IW_SLC__1SDH###############S1A_IW_GRDH_1SSV###############S1A_IW_GRDH_1SSH###############S1A_IW_GRDH_1SDV
     ###############S1A_IW_GRDH_1SDH###############S1A_EW_GRDM_1SSH###############S1A_EW_GRDM_1SDV###############S1A_EW_GRDH_1SDH
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:startTime',self.root.nsmap)
-    metadata['startTime'] = extracted[0].text
+    metadata['StartTime'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:stopTime',self.root.nsmap)
-    metadata['stopTime'] = extracted[0].text
+    metadata['StopTime'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:familyName',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
-    metadata['instrumentFamilyName'] = extracted[0].text
+    metadata['InstrumentFamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:extension/s1sarl1:instrumentMode/s1sarl1:mode',self.root.nsmap)
-    metadata['instrumentMode'] = extracted[0].text
+    metadata['InstrumentMode'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl1:standAloneProductInformation/s1sarl1:productClass',self.root.nsmap)
-    metadata['productClass'] = extracted[0].text
+    metadata['ProductClass'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl1:standAloneProductInformation/s1sarl1:productClassDescription',self.root.nsmap)
-    metadata['productClassDescription'] = extracted[0].text
+    metadata['ProductClassDescription'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl1:standAloneProductInformation/s1sarl1:productComposition',self.root.nsmap)
-    metadata['productComposition'] = extracted[0].text
+    metadata['ProductComposition'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl1:standAloneProductInformation/s1sarl1:productType',self.root.nsmap)
-    metadata['productType'] = extracted[0].text
+    metadata['ProductType'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl1:standAloneProductInformation/s1sarl1:transmitterReceiverPolarisation',self.root.nsmap)
     if len(extracted) > 1:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
     else:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint/gml:coordinates',self.root.nsmap)
-    metadata['coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
     #
     return metadata
     
@@ -171,40 +174,40 @@ class SentinelMetadataExtractor:
     ###############S1A_S3_RAW__0SDH###############S1A_IW_RAW__0SSV###############S1A_IW_RAW__0SSH###############S1A_IW_RAW__0SDV
     ###############S1A_IW_RAW__0SDH###############S1A_EW_RAW__0SDH
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}acquisitionPeriod/{http://www.esa.int/safe/sentinel-1.0}startTime',self.root.nsmap)
-    metadata['startTime'] = extracted[0].text
+    metadata['StartTime'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}acquisitionPeriod/{http://www.esa.int/safe/sentinel-1.0}stopTime',self.root.nsmap)
-    metadata['stopTime'] = extracted[0].text
+    metadata['StopTime'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}platform/{http://www.esa.int/safe/sentinel-1.0}familyName',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}platform/{http://www.esa.int/safe/sentinel-1.0}number',self.root.nsmap)
-    metadata['familyNameNumber'] = extracted[0].text
+    metadata['FamilyNameNumber'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}platform/{http://www.esa.int/safe/sentinel-1.0}instrument/{http://www.esa.int/safe/sentinel-1.0}familyName',self.root.nsmap)
-    metadata['instrumentFamilyName'] = extracted[0].text
+    metadata['InstrumentFamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}platform/{http://www.esa.int/safe/sentinel-1.0}instrument/{http://www.esa.int/safe/sentinel-1.0}extension/s1sar:instrumentMode/s1sar:mode',self.root.nsmap)
-    metadata['instrumentMode'] = extracted[0].text
+    metadata['InstrumentMode'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sar:standAloneProductInformation/s1sar:productClass',self.root.nsmap)
-    metadata['productClass'] = extracted[0].text
+    metadata['ProductClass'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sar:standAloneProductInformation/s1sar:productClassDescription',self.root.nsmap)
-    metadata['productClassDescription'] = extracted[0].text
+    metadata['ProductClassDescription'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sar:standAloneProductInformation/s1sar:productConsolidation',self.root.nsmap)
-    metadata['productConsolidation'] = extracted[0].text
+    metadata['ProductConsolidation'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sar:standAloneProductInformation/s1sar:transmitterReceiverPolarisation',self.root.nsmap)
     if len(extracted) > 1:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
     else:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}frameSet/{http://www.esa.int/safe/sentinel-1.0}frame/{http://www.esa.int/safe/sentinel-1.0}footPrint/{http://www.opengis.net/gml}coordinates',self.root.nsmap)
-    metadata['coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
     
     return metadata
   
@@ -212,43 +215,43 @@ class SentinelMetadataExtractor:
     metadata = {}
     ###############S1A_IW_OCN__2SDV
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:startTime',self.root.nsmap)
-    metadata['startTime'] = extracted[0].text
+    metadata['StartTime'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:stopTime',self.root.nsmap)
-    metadata['stopTime'] = extracted[0].text
+    metadata['StopTime'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:familyName',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['familyName'] = extracted[0].text
+    metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
-    metadata['instrumentFamilyName'] = extracted[0].text
+    metadata['InstrumentFamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:extension/s1sarl2:instrumentMode/s1sarl2:mode',self.root.nsmap)
-    metadata['instrumentMode'] = extracted[0].text
+    metadata['InstrumentMode'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl2:standAloneProductInformation/s1sarl2:productClass',self.root.nsmap)
-    metadata['productClass'] = extracted[0].text
+    metadata['ProductClass'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl2:standAloneProductInformation/s1sarl2:productClassDescription',self.root.nsmap)
-    metadata['productClassDescription'] = extracted[0].text
+    metadata['ProductClassDescription'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl2:standAloneProductInformation/s1sarl2:productComposition',self.root.nsmap)
-    metadata['productComposition'] = extracted[0].text
+    metadata['ProductComposition'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl2:standAloneProductInformation/s1sarl2:productType',self.root.nsmap)
-    metadata['productType'] = extracted[0].text
+    metadata['ProductType'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/s1sarl2:standAloneProductInformation/s1sarl2:transmitterReceiverPolarisation',self.root.nsmap)
     if len(extracted) > 1:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text + "/" + extracted[1].text
     else:
-      metadata['transmitterReceiverPolarisation'] = extracted[0].text
+      metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint/gml:coordinates',self.root.nsmap)
-    metadata['coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
     
     return metadata
   
@@ -263,6 +266,8 @@ class SentinelMetadataExtractor:
     
   def getProductsMetadata(self):
     return self.productMetadata
+    
+    
     
 sentinel = SentinelMetadataExtractor()
 sentinel.extractMetadata()
