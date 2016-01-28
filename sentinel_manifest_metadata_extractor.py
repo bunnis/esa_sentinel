@@ -32,19 +32,21 @@ class SentinelMetadataExtractor:
             self.tree = etree.parse(self.filepath+"/"+str(filename))
             self.root = self.tree.getroot()
           except lxml.etree.XMLSyntaxError:
-            #print 'File XML Syntax Error'
+            print 'File XML Syntax Error'
             self.file_error_count = self.file_error_count+1
             self.filenames_error.append(str(filename))
             continue
           
           raw = ['S1A_S3_RAW__0SDH','S1A_IW_RAW__0SSV','S1A_IW_RAW__0SSH','S1A_IW_RAW__0SDV','S1A_IW_RAW__0SDH','S1A_EW_RAW__0SDH','S1A_EW_RAW__0SSH',
-                 'S1A_EW_RAW__0SDV','S1A_S1_RAW__0SSV','S1A_S6_RAW__0SSV','S1A_S5_RAW__0SSV']
+                 'S1A_EW_RAW__0SDV','S1A_S1_RAW__0SSV','S1A_S6_RAW__0SSV','S1A_S5_RAW__0SSV','S1A_S3_RAW__0SDV','S1A_S1_RAW__0SDH','S1A_S4_RAW__0SSV',
+                 'S1A_S3_RAW__0SSV']
           
           gr = ['S1A_S3_GRDH_1SDH','S1A_IW_SLC__1SSV','S1A_IW__1SSH','S1A_IW_SLC__1SDV','S1A_IW_SLC__1SDH','S1A_IW_GRDH_1SSV','S1A_IW_GRDH_1SSH',
                 'S1A_IW_GRDH_1SDV','S1A_IW_GRDH_1SDH','S1A_EW_GRDM_1SSH','S1A_EW_GRDM_1SDV','S1A_EW_GRDH_1SDH','S1A_EW_GRDM_1SDH',
-                'S1A_IW_SLC__1SSH','S1A_S5_GRDH_1SSV','S1A_EW_GRDH_1SSH','S1A_S5_SLC__1SSV']
+                'S1A_IW_SLC__1SSH','S1A_S5_GRDH_1SSV','S1A_EW_GRDH_1SSH','S1A_S5_SLC__1SSV','S1A_IW_GRDH_1SDV','S1A_S4_GRDH_1SSV','S1A_S3_GRDH_1SSV',
+                'S1A_S3_GRDH_1SDV','S1A_S4_SLC__1SSV','S1A_S3_SLC__1SSV','S1A_S1_GRDH_1SDH','S1A_S3_SLC__1SDV']
           
-          ocn = ['S1A_IW_OCN__2SDV','S1A_WV_OCN__2SSV','S1A_IW_OCN__2SSV','S1A_EW_OCN__2SDH']
+          ocn = ['S1A_IW_OCN__2SDV','S1A_WV_OCN__2SSV','S1A_IW_OCN__2SSV','S1A_EW_OCN__2SDH','S1A_IW_OCN__2SDH']
           
           s2 = ['S2A_OPER_PRD_MSIL1C_PDMC']
           
