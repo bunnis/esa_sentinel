@@ -9,8 +9,10 @@ sentinel = SentinelMetadataExtractor("/tmp/harvested/manifests/")
 sentinel.extractMetadata()
 sentinel.checkAllFilesParsed() #prints a report of errors
 
-metadata = sentinel.getProductsMetadata() #the actual metadata, dict in which keys are the filenames in lowercase, values are a dict of keys,values
+#the actual metadata, dict in which keys are the filenames in lowercase, values are a dict of keys,values
+metadata = sentinel.getProductsMetadata() 
 
 for productName in metadata.keys(): #generate inspires for all metadata harvested
-    sentinel.generateInspireFromTemplate(productName,'inspire_template.xml','/tmp/harvested/manifests-inspire/') #write to manifests-inspire, based on the template, a xml inspire metadata document
+    #write to manifests-inspire, based on the template, a xml inspire metadata document
+    sentinel.generateInspireFromTemplate(productName,'inspire_template.xml','/tmp/harvested/manifests-inspire/') 
 ```
