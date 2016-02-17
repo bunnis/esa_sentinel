@@ -282,13 +282,14 @@ class SentinelMetadataExtractor:
     '''
     return self.productMetadata
 
-  def getEtreesMetadataInspire(self, template='inspire_template.xml'):
+  def getXMLStringMetadataInspire(self, template='inspire_template.xml'):
     '''return all ingested products metadata in etree
     the actual metadata, dict in which keys are the filenames in lowercase, values are an lxml etree
     '''
     for productName in self.productMetadata.keys(): #generate inspires for all metadata harvested
     #write to manifests-inspire, based on the template, a xml inspire metadata document
-        self.productMetadataEtrees[productName] = self.generateInspireFromTemplate(productName,template,'', True)
+        inspireetree = self.generateInspireFromTemplate(productName,template,'', False)
+        self.productMetadataEtrees[productName] = etree.tostring(inspireetree,encoding='utf-8', pretty_print=True)
     return self.productMetadataEtrees
   
     
