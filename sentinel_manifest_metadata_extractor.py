@@ -7,6 +7,7 @@ import lxml
 from lxml import etree
 import os
 import re
+import uuid as uuid_gen
 
 class SentinelMetadataExtractor:
   filepath = ''
@@ -22,6 +23,7 @@ class SentinelMetadataExtractor:
     
     
   def extractMetadata(self):
+    '''main method for metadata extarction'''
     for filename in os.listdir(self.filepath):
       self.total_files = self.total_files +1
       
@@ -37,6 +39,7 @@ class SentinelMetadataExtractor:
             self.filenames_error.append(str(filename))
             continue
           
+          #####all this names represent files succesfully parsed with this program
           raw = ['S1A_S3_RAW__0SDH','S1A_IW_RAW__0SSV','S1A_IW_RAW__0SSH','S1A_IW_RAW__0SDV','S1A_IW_RAW__0SDH','S1A_EW_RAW__0SDH','S1A_EW_RAW__0SSH',
                  'S1A_EW_RAW__0SDV','S1A_S1_RAW__0SSV','S1A_S6_RAW__0SSV','S1A_S5_RAW__0SSV','S1A_S3_RAW__0SDV','S1A_S1_RAW__0SDH','S1A_S4_RAW__0SSV',
                  'S1A_S3_RAW__0SSV']
@@ -84,6 +87,7 @@ class SentinelMetadataExtractor:
     print "All Done"
 
   def parseCoordinates(self,coordinates):
+    '''parse coordinates to a json format[[[lat1,long1],[lat2,long2],...]]'''
     final_list = []
     coordsx=[] #lat
     coordsy=[] #long
@@ -258,8 +262,10 @@ class SentinelMetadataExtractor:
     metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
     
     return metadata
+
   
   def checkAllFilesParsed(self):
+    ''' check if any files processed had errors and outputs their name, along with the number of total files processed'''
     print 'Processed ' + str(self.total_files) + ' files'
     print '\n\n'
     print str(self.file_error_count) + " files had errors"
@@ -267,12 +273,131 @@ class SentinelMetadataExtractor:
     
     for j in range(0,len(self.filenames_error)):
       print self.filenames_error[j]
-    
+ 
+ 
   def getProductsMetadata(self):
+    '''return all ingested products metadata
+    the actual metadata, dict in which keys are the filenames in lowercase, values are a dict of keys,values
+    '''
     return self.productMetadata
+
+    
+  def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/'):
+    '''glued with spit and hammered code to generate inspire xml based on a custom template
+    general idea is to replace the values on the template with the ones from our metadata
+    check http://inspire-geoportal.ec.europa.eu/editor/'''
     
     
     
-sentinel = SentinelMetadataExtractor()
-sentinel.extractMetadata()
-sentinel.checkAllFilesParsed()
+    if not os.path.exists(output_folder):
+      print 'Folder does not exist, creating '+output_folder
+      try:
+        os.makedirs(output_folder)
+      except:
+        print 'Folder creation not succesfull, maybe you do not have permissions'
+        return None
+      
+    try:
+      os.path.isdir(output_folder)
+    except:
+      print 'given output_folder path is not a folder'   
+      return None
+    
+    if metadata_key in self.productMetadata.keys():
+      try: 
+        template_tree = etree.parse(template)
+        template_root = template_tree.getroot()
+        
+        current_metadata = self.productMetadata[metadata_key]
+
+####make query to sentinel to get uuid TODO
+####maybe change program to download and parse direct resutls from esa, or provide option for file or url
+# S1A_IW_RAW__0SDV_20160202T220115_20160202T220148_009773_00E49F_6E67 
+#uuid cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0 
+#product download https://scihub.copernicus.eu/apihub/odata/v1/Products('cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0')/$value 
+#manifest https://scihub.copernicus.eu/apihub/odata/v1/Products('cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0')/Nodes('S1A_IW_RAW__0SDV_20160202T220115_20160202T220148_009773_00E49F_6E67'.SAFE)/Nodes('manifest.safe')/$value
+        uuid = uuid_gen.uuid4()
+        #uuid
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}fileIdentifier/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = str(uuid) 
+        
+        #org name
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}contact/{http://www.isotc211.org/2005/gmd}CI_ResponsibleParty/{http://www.isotc211.org/2005/gmd}organisationName/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'ESA' 
+        
+        #org contact email
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}contact/{http://www.isotc211.org/2005/gmd}CI_ResponsibleParty/{http://www.isotc211.org/2005/gmd}contactInfo/{http://www.isotc211.org/2005/gmd}CI_Contact/{http://www.isotc211.org/2005/gmd}address/{http://www.isotc211.org/2005/gmd}CI_Address/{http://www.isotc211.org/2005/gmd}electronicMailAddress/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'esapub@esa.int'
+        
+        #date created 
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}dateStamp/{http://www.isotc211.org/2005/gco}Date',template_root.nsmap)
+        find[0].text = current_metadata['StartTime'][:10]    
+        
+        #filename
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}citation/{http://www.isotc211.org/2005/gmd}CI_Citation/{http://www.isotc211.org/2005/gmd}title/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = metadata_key.upper()
+        
+        #date for metadata creation (this xml)
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}citation/{http://www.isotc211.org/2005/gmd}CI_Citation/{http://www.isotc211.org/2005/gmd}date/{http://www.isotc211.org/2005/gmd}CI_Date/{http://www.isotc211.org/2005/gmd}date/{http://www.isotc211.org/2005/gco}Date',template_root.nsmap)
+        find[0].text = current_metadata['StartTime'][:10]        
+
+        #uuid
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}citation/{http://www.isotc211.org/2005/gmd}CI_Citation/{http://www.isotc211.org/2005/gmd}identifier/{http://www.isotc211.org/2005/gmd}RS_Identifier/{http://www.isotc211.org/2005/gmd}code/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = str(uuid)      
+        
+        #abstract
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}abstract/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'ESA Sentinel Product Metadata'  
+        
+        #responsible org
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}pointOfContact/{http://www.isotc211.org/2005/gmd}CI_ResponsibleParty/{http://www.isotc211.org/2005/gmd}organisationName/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'ESA'
+        
+        #responsible org contact
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}pointOfContact/{http://www.isotc211.org/2005/gmd}CI_ResponsibleParty/{http://www.isotc211.org/2005/gmd}contactInfo/{http://www.isotc211.org/2005/gmd}CI_Contact/{http://www.isotc211.org/2005/gmd}address/{http://www.isotc211.org/2005/gmd}CI_Address/{http://www.isotc211.org/2005/gmd}electronicMailAddress/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'esapub@esa.int'
+        
+        #keywords from INSPIER Data Themes
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}descriptiveKeywords/{http://www.isotc211.org/2005/gmd}MD_Keywords/{http://www.isotc211.org/2005/gmd}keyword/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'Orthoimagery'       
+        
+        #keywors from repositories
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}descriptiveKeywords/{http://www.isotc211.org/2005/gmd}MD_Keywords/{http://www.isotc211.org/2005/gmd}thesaurusName/{http://www.isotc211.org/2005/gmd}CI_Citation/{http://www.isotc211.org/2005/gmd}title/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'GEMET - INSPIRE themes, version 1.0'
+        
+        #licenese conditions
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}resourceConstraints/{http://www.isotc211.org/2005/gmd}MD_Constraints/{http://www.isotc211.org/2005/gmd}useLimitation/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
+        find[0].text = 'Conditions unknown'        
+        
+        #topic category code
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}topicCategory/{http://www.isotc211.org/2005/gmd}MD_TopicCategoryCode',template_root.nsmap)
+        find[0].text = 'imageryBaseMapsEarthCover'
+        
+        #start time of data
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}beginPosition',template_root.nsmap)
+        find[0].text = current_metadata['StartTime'][:10]        
+        
+        #end time of data
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}endPosition',template_root.nsmap)
+        find[0].text = current_metadata['StopTime'][:10]         
+        
+        #link for the resource described in the metadata
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}distributionInfo/{http://www.isotc211.org/2005/gmd}MD_Distribution/{http://www.isotc211.org/2005/gmd}transferOptions/{http://www.isotc211.org/2005/gmd}MD_DigitalTransferOptions/{http://www.isotc211.org/2005/gmd}onLine/{http://www.isotc211.org/2005/gmd}CI_OnlineResource/{http://www.isotc211.org/2005/gmd}linkage/{http://www.isotc211.org/2005/gmd}URL',template_root.nsmap)
+        find[0].text = '' #TODO       
+        
+        output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml'
+        #print output_filename
+        template_tree.write(output_filename, pretty_print=True) #remove .manifest.safe , add .xml
+        
+      except lxml.etree.XMLSyntaxError:
+        print 'File XML Syntax Error'
+        return None
+      
+      #except Exception:
+        #print 'Unspecified error occured, maybe the file doesn\'t exist'
+        #return None
+
+    else:
+      print 'Wrong metadata key'
+      return None
+    
