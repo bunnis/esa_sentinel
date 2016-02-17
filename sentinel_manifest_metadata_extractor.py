@@ -301,6 +301,7 @@ class SentinelMetadataExtractor:
     output_folder can be empty if writeToFile is false
     '''
     
+    print metadata_key
     
     if writeToFile:
       if not os.path.exists(output_folder):
@@ -394,7 +395,10 @@ class SentinelMetadataExtractor:
         
         #end time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}endPosition',template_root.nsmap)
-        find[0].text = current_metadata['StopTime'][:10]         
+        if current_metadata['StopTime']:#sentinel 2 products sometimes dont have stoptime
+          find[0].text = current_metadata['StopTime'][:10]        
+        else:
+          find[0].text = current_metadata['StartTime'][:10]
         
         #link for the resource described in the metadata
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}distributionInfo/{http://www.isotc211.org/2005/gmd}MD_Distribution/{http://www.isotc211.org/2005/gmd}transferOptions/{http://www.isotc211.org/2005/gmd}MD_DigitalTransferOptions/{http://www.isotc211.org/2005/gmd}onLine/{http://www.isotc211.org/2005/gmd}CI_OnlineResource/{http://www.isotc211.org/2005/gmd}linkage/{http://www.isotc211.org/2005/gmd}URL',template_root.nsmap)
