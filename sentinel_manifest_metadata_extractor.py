@@ -285,7 +285,9 @@ class SentinelMetadataExtractor:
   def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/'):
     '''glued with spit and hammered code to generate inspire xml based on a custom template
     general idea is to replace the values on the template with the ones from our metadata
-    check http://inspire-geoportal.ec.europa.eu/editor/'''
+    check http://inspire-geoportal.ec.europa.eu/editor/
+    returns the etree
+    '''
     
     
     
@@ -375,7 +377,8 @@ class SentinelMetadataExtractor:
         
         #start time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}beginPosition',template_root.nsmap)
-        find[0].text = current_metadata['StartTime'][:10]        
+        find[0].text = current_metadata['StartTime'][:10]  
+
         
         #end time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}endPosition',template_root.nsmap)
@@ -388,6 +391,7 @@ class SentinelMetadataExtractor:
         output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml'
         #print output_filename
         template_tree.write(output_filename, pretty_print=True) #remove .manifest.safe , add .xml
+        return template_tree
         
       except lxml.etree.XMLSyntaxError:
         print 'File XML Syntax Error'
