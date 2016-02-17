@@ -14,5 +14,5 @@ metadata = sentinel.getProductsMetadata()
 
 for productName in metadata.keys(): #generate inspires for all metadata harvested
     #write to manifests-inspire, based on the template, a xml inspire metadata document
-    sentinel.generateInspireFromTemplate(productName,'inspire_template.xml','/tmp/harvested/manifests-inspire/') 
+    sentinel.generateInspireFromTemplate(productName,'inspire_template.xml','/tmp/harvested/manifests-inspire/', True) 
 ```

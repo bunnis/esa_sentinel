@@ -282,7 +282,7 @@ class SentinelMetadataExtractor:
     return self.productMetadata
 
     
-  def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/'):
+  def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/',writeToFile=False):
     '''glued with spit and hammered code to generate inspire xml based on a custom template
     general idea is to replace the values on the template with the ones from our metadata
     check http://inspire-geoportal.ec.europa.eu/editor/
@@ -388,9 +388,10 @@ class SentinelMetadataExtractor:
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}distributionInfo/{http://www.isotc211.org/2005/gmd}MD_Distribution/{http://www.isotc211.org/2005/gmd}transferOptions/{http://www.isotc211.org/2005/gmd}MD_DigitalTransferOptions/{http://www.isotc211.org/2005/gmd}onLine/{http://www.isotc211.org/2005/gmd}CI_OnlineResource/{http://www.isotc211.org/2005/gmd}linkage/{http://www.isotc211.org/2005/gmd}URL',template_root.nsmap)
         find[0].text = '' #TODO       
         
-        output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml'
-        #print output_filename
-        template_tree.write(output_filename, pretty_print=True) #remove .manifest.safe , add .xml
+        if writeToFile:
+          output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml' #remove .manifest.safe , add .xml
+          template_tree.write(output_filename, pretty_print=True) 
+          
         return template_tree
         
       except lxml.etree.XMLSyntaxError:
