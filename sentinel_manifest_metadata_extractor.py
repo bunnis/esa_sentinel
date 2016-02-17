@@ -286,7 +286,7 @@ class SentinelMetadataExtractor:
     '''return all ingested products metadata in etree
     the actual metadata, dict in which keys are the filenames in lowercase, values are an lxml etree
     '''
-    for productName in metadata.keys(): #generate inspires for all metadata harvested
+    for productName in self.productMetadata.keys(): #generate inspires for all metadata harvested
     #write to manifests-inspire, based on the template, a xml inspire metadata document
         self.productMetadataEtrees[productName] = self.generateInspireFromTemplate(productName,template,'', True)
     return self.productMetadataEtrees
