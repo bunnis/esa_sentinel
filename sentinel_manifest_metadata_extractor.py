@@ -17,6 +17,7 @@ class SentinelMetadataExtractor:
   filenames_error=[]
   total_files=0
   productMetadata={}
+  productMetadataEtrees={}
   
   def __init__(self, Filepath="/tmp/harvested/manifests/"):
     self.filepath = Filepath
@@ -281,29 +282,39 @@ class SentinelMetadataExtractor:
     '''
     return self.productMetadata
 
+  def getEtreesMetadataInspire(self, template='inspire_template.xml'):
+    '''return all ingested products metadata in etree
+    the actual metadata, dict in which keys are the filenames in lowercase, values are an lxml etree
+    '''
+    for productName in metadata.keys(): #generate inspires for all metadata harvested
+    #write to manifests-inspire, based on the template, a xml inspire metadata document
+        self.productMetadataEtrees[productName] = self.generateInspireFromTemplate(productName,template,'', True)
+    return self.productMetadataEtrees
+  
     
   def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/',writeToFile=False):
     '''glued with spit and hammered code to generate inspire xml based on a custom template
     general idea is to replace the values on the template with the ones from our metadata
     check http://inspire-geoportal.ec.europa.eu/editor/
     returns the etree
+    output_folder can be empty if writeToFile is false
     '''
     
     
-    
-    if not os.path.exists(output_folder):
-      print 'Folder does not exist, creating '+output_folder
+    if writeToFile:
+      if not os.path.exists(output_folder):
+        print 'Folder does not exist, creating '+output_folder
+        try:
+          os.makedirs(output_folder)
+        except:
+          print 'Folder creation not succesfull, maybe you do not have permissions'
+          return None
+        
       try:
-        os.makedirs(output_folder)
+        os.path.isdir(output_folder)
       except:
-        print 'Folder creation not succesfull, maybe you do not have permissions'
+        print 'given output_folder path is not a folder'   
         return None
-      
-    try:
-      os.path.isdir(output_folder)
-    except:
-      print 'given output_folder path is not a folder'   
-      return None
     
     if metadata_key in self.productMetadata.keys():
       try: 
