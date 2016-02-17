@@ -395,8 +395,8 @@ class SentinelMetadataExtractor:
         
         #end time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}endPosition',template_root.nsmap)
-        if current_metadata['StopTime']:#sentinel 2 products sometimes dont have stoptime
-          find[0].text = current_metadata['StopTime'][:10]        
+        if 'StopTime' in current_metadata.keys():#sentinel 2 products sometimes dont have stoptime
+          find[0].text = current_metadata['StopTime'][:10]
         else:
           find[0].text = current_metadata['StartTime'][:10]
         
