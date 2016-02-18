@@ -294,7 +294,7 @@ class SentinelMetadataExtractor:
         
     return self.productMetadataEtrees
   
-   def getBoundingBox(self,coords):
+  def getBoundingBox(self,coords):
    '''returns a bounding box for a given set of coordinates
    '''
     ##parse coords
