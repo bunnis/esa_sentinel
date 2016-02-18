@@ -287,12 +287,14 @@ class SentinelMetadataExtractor:
     the actual metadata, dict in which keys are the filenames in lowercase, values are an lxml etree
     '''
     for productName in self.productMetadata.keys(): #generate inspires for all metadata harvested
-    #write to manifests-inspire, based on the template, a xml inspire metadata document
+        #write to manifests-inspire, based on the template, a xml inspire metadata document
         inspireetree = self.generateInspireFromTemplate(productName,template,'', False)
         self.productMetadataEtrees[productName] = etree.tostring(inspireetree,encoding='utf-8', pretty_print=True)
+        
+        
     return self.productMetadataEtrees
   
-   def getBoundingBox(self,coords)
+   def getBoundingBox(self,coords):
    '''returns a bounding box for a given set of coordinates
    '''
     ##parse coords
