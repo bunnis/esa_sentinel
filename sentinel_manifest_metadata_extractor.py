@@ -292,6 +292,27 @@ class SentinelMetadataExtractor:
         self.productMetadataEtrees[productName] = etree.tostring(inspireetree,encoding='utf-8', pretty_print=True)
     return self.productMetadataEtrees
   
+   def getBoundingBox(self,coords)
+   '''returns a bounding box for a given set of coordinates
+   '''
+    ##parse coords
+    coordsx=[] #lat
+    coordsy=[] #long
+    
+    for c in range(0,len(coords)):
+      coordsx.append(coords[c][0])
+      coordsy.append(coords[c][1])
+    
+    xmax = max(coordsx);
+    xmin = min(coordsx);
+    ymax = max(coordsy);
+    ymin = min(coordsy);
+    
+    #lat max = north bound lat
+    #lat min = south bound lat
+    #long max = east bound long
+    #ong min = west bound long
+    return [xmax,xmin,ymax,ymin]
     
   def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/',writeToFile=False):
     '''glued with spit and hammered code to generate inspire xml based on a custom template
@@ -391,6 +412,31 @@ class SentinelMetadataExtractor:
         #start time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}beginPosition',template_root.nsmap)
         find[0].text = current_metadata['StartTime'][:10]  
+
+        #coords
+        bb = self.getBoundingBox(current_metadata['Coordinates'])
+        #lat max = north bound lat
+        #lat min = south bound lat
+        #long max = east bound long
+        #ong min = west bound long
+        #return [xmax,xmin,ymax,ymin]
+      
+        #westBoundLongitude
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}geographicElement/{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox/{http://www.isotc211.org/2005/gmd}westBoundLongitude/{http://www.isotc211.org/2005/gco}Decimal',template_root.nsmap)
+        find[0].text = bb[0]
+        
+        #eastBoundLongitude
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}geographicElement/{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox/{http://www.isotc211.org/2005/gmd}eastBoundLongitude/{http://www.isotc211.org/2005/gco}Decimal',template_root.nsmap)
+        find[0].text = bb[1]
+        
+        #southBoundLatitude
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}geographicElement/{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox/{http://www.isotc211.org/2005/gmd}southBoundLatitude/{http://www.isotc211.org/2005/gco}Decimal',template_root.nsmap)
+        find[0].text = bb[2]
+        
+        #northBoundLatitude
+        find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}geographicElement/{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox/{http://www.isotc211.org/2005/gmd}northBoundLatitude/{http://www.isotc211.org/2005/gco}Decimal',template_root.nsmap)
+        find[0].text = bb[3]
+        
 
         
         #end time of data
