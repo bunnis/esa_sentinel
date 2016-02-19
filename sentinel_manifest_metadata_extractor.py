@@ -7,7 +7,6 @@ import lxml
 from lxml import etree
 import os
 import re
-import uuid as uuid_gen #TODO remove
 from xml.dom import minidom
 import requests
 from requests.auth import HTTPBasicAuth
