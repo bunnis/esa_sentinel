@@ -1,14 +1,28 @@
-'''Python script for extracting metadata fields from sentinel manifests
+'''Python script for extracting metadata fields from sentinel manifests or from opensearch API
 Sentinel 1
 Sentinel 2
 Assumes there is a location where several manifests are stored
-January 2016'''
+February 2016'''
 import lxml
 from lxml import etree
 import os
 import re
-import uuid as uuid_gen
+import uuid as uuid_gen #TODO remove
+from xml.dom import minidom
+import requests
+from requests.auth import HTTPBasicAuth
+import time
+from datetime import date, timedelta
+import sys
 
+#TODO add logging instead of printing
+#import logging
+#logging.basicConfig(level=logging.DEBUG)
+#https://docs.python.org/2/howto/logging.html
+
+DHUS_USER ='guest'
+DHUS_PASS ='guest'
+FILEPATH = "/tmp/harvested/manifests/"
 class SentinelMetadataExtractor:
   filepath = ''
   tree = ""
@@ -18,12 +32,172 @@ class SentinelMetadataExtractor:
   total_files=0
   productMetadata={}
   productMetadataEtrees={}
+
   
-  def __init__(self, Filepath="/tmp/harvested/manifests/"):
-    self.filepath = Filepath
+  def __init__(self, filepath=FILEPATH):
+    self.filepath = filepath
+    
+  def _transformSolrCoordsToSAFECoords(self, coords):
+    '''receives coordinates in solr format and parses to the one in SAFE format for further processing
+    FROM #POLYGON ((123.3108 8.0611,123.0589 9.3117,120.8469 9.0181,121.1061 7.7648,123.3108 8.0611,123.3108 8.0611))
+    TO 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
+    '''
+    
+    #remove (( and )), split by commas
+    coords_split = str(re.findall("POLYGON\s\D\D(.*)\D\D", coords)).split(',')
+    
+    #add commas in whitespaces, and a whitespace to separate each pair, result is something like this 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
+    coords_united = ''
+    for c in range(0,len(coords_split)):
+      replaced = coords_split[c].replace(" ", ",")
+      
+      coords_united = coords_united + replaced
+      if c != (len(coords_split)-1):
+        coords_united = coords_united +" "
+
+    return coords_united
+  
+  
+  def _downloadProduct(self,filename,link,outputFolder,user=DHUS_USER, password=DHUS_PASS):
+    '''download product and shows a progress bar'''
+    print 'Download product from ' + link
+
+    with open(filename, "wb") as f:
+      print "Downloading %s" % filename
+      response = requests.get(link, stream=True, auth=HTTPBasicAuth(user, password))
+      total_length = response.headers.get('content-length')
+
+      if total_length is None: # no content length header
+          f.write(response.content)
+      else:
+          dl = 0
+          total_length = int(total_length)
+          for data in response.iter_content():
+              dl += len(data)
+              f.write(data)
+              done = int(50 * dl / total_length)
+              sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) )    
+              sys.stdout.flush()
+    print 'Finished Download'
+  
+  def extractMetadataFromAPIForToday(self,downloadManifests = False,user=DHUS_USER, password=DHUS_PASS, outputFolder=FILEPATH):
+    '''queries the dhus api and uses its metadata,
+    can download manifests and stores the manifests at specified location (filepath on init)'''
+    #odata - url = "https://scihub.copernicus.eu/apihub/odata/v1/Products?$filter=year(IngestionDate) eq 2016 and month(IngestionDate) eq 02 and day(IngestionDate) eq 1&$skip=0&$top=99"
+ 
+    if downloadManifests: #if folder doesnt exist and we want to write to file, exit
+      if not self._folderExists(outputFolder):
+        return None 
+ 
+    today = time.strftime('%Y-%m-%d')
+    yesterday_d = date.today() - timedelta(1)
+    yesterday = yesterday_d.strftime('%Y-%m-%d')
+    NOW = str(today)+'T00:00:00.000Z'#Thh:mm:ss.SSSZ
+    YESTERDAY = str(yesterday)+'T00:00:00.000Z'#Thh:mm:ss.SSSZ
+    metadata = {}
+    
+   
+    ##first request to get total results
+    url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]"
+
+    r = requests.get(url, auth=HTTPBasicAuth(user, password))
+    if r.status_code != 200:
+      print 'Wrong authentication? status code != 200'
+      return None
+    
+    #print r.text
+    xml = minidom.parseString(r.text)
+    total_results = xml.getElementsByTagName("opensearch:totalResults")[0].firstChild.data
+    
+    print 'found ' +total_results +' results'
+
+    for i in range(0, int(total_results), 100):
+      url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]&start="+str(i)+"&rows=99"
+
+      r = requests.get(url, auth=HTTPBasicAuth(user, password))
+      xml = minidom.parseString(r.text)
+
+      products=xml.getElementsByTagName("entry")
+
+      for prod in products:
+          ident=prod.getElementsByTagName("id")[0].firstChild.data
+          #print ident
+          link=prod.getElementsByTagName("link")[0].attributes.items()[0][1]
+          #print link
+          title=prod.getElementsByTagName("title")[0].firstChild.data
+          #print title
+          
+          metadata['uuid'] = ident
+          metadata['downloadLink'] = link
+          metadata['thumbnail'] = "https://"+user+":"+password+"@scihub.copernicus.eu/apihub/odata/v1/Products('"+ident+"')/Products('Quicklook')/$value"
+          
+          if downloadManifests:
+            self._downloadProduct(title.lower()+'.SAFE.zip',link,outputFolder,user,password)
+          
+          for node in prod.getElementsByTagName("str"):
+              (name,value)=node.attributes.items()[0]
+              #metadata[value]=''
+              
+              #print name,value
+              if value=="filename":
+                  #filename= str(node.toxml()).split('>')[1].split('<')[0]#ugly, but minidom is not straightforward
+                  filename = node.firstChild.data
+                  metadata['manifestLink'] = "https://scihub.copernicus.eu/apihub/odata/v1/Products('" + ident +"')/Nodes('"+filename+"')/Nodes('manifest.safe')/$value"
+                  
+              if value=="footprint": 
+                  #assuming all footprints are polygons
+                  footprint = node.firstChild.data
+                  metadata['Coordinates'] = self._parseCoordinates(self._transformSolrCoordsToSAFECoords(footprint))
+                  
+              if value=="beginposition": 
+                  metadata['StartTime'] = node.firstChild.data
+
+              if value=="endposition": 
+                  metadata['StopTime'] = node.firstChild.data
+                
+              if value=="platformname": 
+                metadata['FamilyName'] = node.firstChild.data
+
+              if value=="instrumentshortname": 
+                metadata['InstrumentFamilyName'] = node.firstChild.data
+                       
+              if value=="instrumentname": 
+                metadata['instrumentname'] = node.firstChild.data
+                       
+              if value=="footprint": 
+                metadata['StartTime'] = node.firstChild.data     
+                
+              if value=="polarisationmode": 
+                metadata['TransmitterReceiverPolarisation'] = node.firstChild.data
+                
+              if value=="sensoroperationalmode": 
+                metadata['InstrumentMode'] = node.firstChild.data  
+                
+              if value=="productclass": 
+                metadata['ProductClass'] = node.firstChild.data   
+                
+              if value=="producttype": 
+                metadata['ProductType'] = node.firstChild.data   
+                
+              if value=="productconsolidation": 
+                metadata['ProductConsolidation'] = node.firstChild.data   
+                
+              if value=="acquisitiontype": 
+                metadata['AcquisitionType'] = node.firstChild.data  
+                
+              if value=="orbitdirection": 
+                metadata['OrbitDirection'] = node.firstChild.data     
+                
+              if value=="swathidentifier": 
+                metadata['Swath'] = node.firstChild.data                    
+                
+
+          self.productMetadata[title.lower()+'.manifest.safe'] =metadata #.manifest.safe to mantain consistency across class
+
+    print 'finished parsing api results'
     
     
-  def extractMetadata(self):
+  def extractMetadataFromManifestFiles(self):
     '''main method for metadata extarction'''
     for filename in os.listdir(self.filepath):
       self.total_files = self.total_files +1
@@ -58,25 +232,25 @@ class SentinelMetadataExtractor:
           for sentinel_name in gr:
             if filename.startswith(sentinel_name):
               processed = True
-              self.productMetadata[filename.lower()] = self.extractGR()
+              self.productMetadata[filename.lower()] = self._extractGR()
               break
             
           for sentinel_name in raw:
             if filename.startswith(sentinel_name):
               processed = True
-              self.productMetadata[filename.lower()] = self.extractRAW()
+              self.productMetadata[filename.lower()] = self._extractRAW()
               break
             
           for sentinel_name in ocn:  
             if filename.startswith(sentinel_name):
                 processed = True
-                self.productMetadata[filename.lower()] = self.extractIWOCN()
+                self.productMetadata[filename.lower()] = self._extractIWOCN()
                 break
               
           for sentinel_name in s2:  
             if filename.startswith(sentinel_name):
                 processed = True
-                self.productMetadata[filename.lower()] = self.extractS2()
+                self.productMetadata[filename.lower()] = self._extractS2()
                 break
           if not processed:
               self.file_error_count = self.file_error_count+1
@@ -87,7 +261,7 @@ class SentinelMetadataExtractor:
         
     print "All Done"
 
-  def parseCoordinates(self,coordinates):
+  def _parseCoordinates(self,coordinates):
     '''parse coordinates to a json format[[[lat1,long1],[lat2,long2],...]]'''
     final_list = []
     coordsx=[] #lat
@@ -110,7 +284,7 @@ class SentinelMetadataExtractor:
      
     
     
-  def extractS2(self):
+  def _extractS2(self):
     metadata = {}
     ###############S1A_S3_GRDH_1SDH###############S1A_IW_SLC__1SSV###############S1A_IW__1SSH###############S1A_IW_SLC__1SDV
     ###############S1A_IW_SLC__1SDH###############S1A_IW_GRDH_1SSV###############S1A_IW_GRDH_1SSH###############S1A_IW_GRDH_1SDV
@@ -122,17 +296,17 @@ class SentinelMetadataExtractor:
     metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['FamilyName'] = extracted[0].text
+    metadata['FamilyNameNumber'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
     metadata['InstrumentFamilyName'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel/1.1}frameSet/{http://www.esa.int/safe/sentinel/1.1}footPrint/{http://www.opengis.net/gml}coordinates',self.root.nsmap)
-    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self._parseCoordinates(extracted[0].text)
     #
     return metadata
     
-  def extractGR(self):
+  def _extractGR(self):
     metadata = {}
     ###############S1A_S3_GRDH_1SDH###############S1A_IW_SLC__1SSV###############S1A_IW__1SSH###############S1A_IW_SLC__1SDV
     ###############S1A_IW_SLC__1SDH###############S1A_IW_GRDH_1SSV###############S1A_IW_GRDH_1SSH###############S1A_IW_GRDH_1SDV
@@ -147,7 +321,7 @@ class SentinelMetadataExtractor:
     metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['FamilyName'] = extracted[0].text
+    metadata['FamilyNameNumber'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
     metadata['InstrumentFamilyName'] = extracted[0].text
@@ -174,11 +348,11 @@ class SentinelMetadataExtractor:
       metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint/gml:coordinates',self.root.nsmap)
-    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self._parseCoordinates(extracted[0].text)
     #
     return metadata
     
-  def extractRAW(self):
+  def _extractRAW(self):
     metadata = {}
     ###############S1A_S3_RAW__0SDH###############S1A_IW_RAW__0SSV###############S1A_IW_RAW__0SSH###############S1A_IW_RAW__0SDV
     ###############S1A_IW_RAW__0SDH###############S1A_EW_RAW__0SDH
@@ -216,11 +390,11 @@ class SentinelMetadataExtractor:
       metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/{http://www.esa.int/safe/sentinel-1.0}frameSet/{http://www.esa.int/safe/sentinel-1.0}frame/{http://www.esa.int/safe/sentinel-1.0}footPrint/{http://www.opengis.net/gml}coordinates',self.root.nsmap)
-    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self._parseCoordinates(extracted[0].text)
     
     return metadata
   
-  def extractIWOCN(self):
+  def _extractIWOCN(self):
     metadata = {}
     ###############S1A_IW_OCN__2SDV
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:acquisitionPeriod/safe:startTime',self.root.nsmap)
@@ -233,7 +407,7 @@ class SentinelMetadataExtractor:
     metadata['FamilyName'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:number',self.root.nsmap)
-    metadata['FamilyName'] = extracted[0].text
+    metadata['FamilyNameNumber'] = extracted[0].text
     
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:platform/safe:instrument/safe:familyName',self.root.nsmap)
     metadata['InstrumentFamilyName'] = extracted[0].text
@@ -260,7 +434,7 @@ class SentinelMetadataExtractor:
       metadata['TransmitterReceiverPolarisation'] = extracted[0].text
     #
     extracted = self.root.findall('./metadataSection/metadataObject/metadataWrap/xmlData/safe:frameSet/safe:frame/safe:footPrint/gml:coordinates',self.root.nsmap)
-    metadata['Coordinates'] = self.parseCoordinates(extracted[0].text)
+    metadata['Coordinates'] = self._parseCoordinates(extracted[0].text)
     
     return metadata
 
@@ -294,7 +468,7 @@ class SentinelMetadataExtractor:
         
     return self.productMetadataEtrees
   
-  def getBoundingBox(self,coords):
+  def _getBoundingBox(self,coords):
     '''returns a bounding box for a given set of coordinates
     '''
     ##parse coords
@@ -315,32 +489,43 @@ class SentinelMetadataExtractor:
     #long max = east bound long
     #ong min = west bound long
     return [xmax,xmin,ymax,ymin]
+  
+  
+  def _folderExists(self,outputFolder):
+    '''check if path exists and then check if path given is a folder, returns boolean'''
+    if not os.path.exists(outputFolder):
+      print 'Folder does not exist, creating '+outputFolder +' .'
+      try:
+        os.makedirs(outputFolder)
+        return True
+      except:
+        print 'Folder creation not succesfull, maybe you do not have permissions'
+        return False
     
-  def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', output_folder = '/tmp/harvested/manifests-inspire/',writeToFile=False):
+    try:
+      os.path.isdir(outputFolder)
+      return True
+    except:
+      print 'given outputFolder path is not a folder'   
+      return False
+    return False
+  
+  
+  def generateInspireFromTemplate(self, metadata_key, template='inspire_template.xml', outputFolder = '/tmp/harvested/manifests-inspire/',writeToFile=False):
     '''glued with spit and hammered code to generate inspire xml based on a custom template
     general idea is to replace the values on the template with the ones from our metadata
     check http://inspire-geoportal.ec.europa.eu/editor/
     returns the etree
-    output_folder can be empty if writeToFile is false
+    outputFolder can be empty if writeToFile is false
     '''
     
-    print metadata_key
+    #print metadata_key
     
-    if writeToFile:
-      if not os.path.exists(output_folder):
-        print 'Folder does not exist, creating '+output_folder
-        try:
-          os.makedirs(output_folder)
-        except:
-          print 'Folder creation not succesfull, maybe you do not have permissions'
-          return None
-        
-      try:
-        os.path.isdir(output_folder)
-      except:
-        print 'given output_folder path is not a folder'   
+    if writeToFile: #if folder doesnt exist and we want to write to file, exit
+      if not self._folderExists(outputFolder):
         return None
-    
+      
+      
     if metadata_key in self.productMetadata.keys():
       try: 
         template_tree = etree.parse(template)
@@ -348,16 +533,9 @@ class SentinelMetadataExtractor:
         
         current_metadata = self.productMetadata[metadata_key]
 
-####make query to sentinel to get uuid TODO
-####maybe change program to download and parse direct resutls from esa, or provide option for file or url
-# S1A_IW_RAW__0SDV_20160202T220115_20160202T220148_009773_00E49F_6E67 
-#uuid cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0 
-#product download https://scihub.copernicus.eu/apihub/odata/v1/Products('cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0')/$value 
-#manifest https://scihub.copernicus.eu/apihub/odata/v1/Products('cac5b7dd-a3cb-4fcd-ba0c-a6523fe817a0')/Nodes('S1A_IW_RAW__0SDV_20160202T220115_20160202T220148_009773_00E49F_6E67'.SAFE)/Nodes('manifest.safe')/$value
-        uuid = uuid_gen.uuid4()
         #uuid
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}fileIdentifier/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
-        find[0].text = str(uuid) 
+        find[0].text = current_metadata['uuid'] 
         
         #org name
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}contact/{http://www.isotc211.org/2005/gmd}CI_ResponsibleParty/{http://www.isotc211.org/2005/gmd}organisationName/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
@@ -416,7 +594,7 @@ class SentinelMetadataExtractor:
         find[0].text = current_metadata['StartTime'][:10]  
 
         #coords
-        bb = self.getBoundingBox(current_metadata['Coordinates'])
+        bb = self._getBoundingBox(current_metadata['Coordinates'])
         #lat max = north bound lat
         #lat min = south bound lat
         #long max = east bound long
@@ -439,8 +617,6 @@ class SentinelMetadataExtractor:
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}geographicElement/{http://www.isotc211.org/2005/gmd}EX_GeographicBoundingBox/{http://www.isotc211.org/2005/gmd}northBoundLatitude/{http://www.isotc211.org/2005/gco}Decimal',template_root.nsmap)
         find[0].text = bb[3]
         
-
-        
         #end time of data
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}extent/{http://www.isotc211.org/2005/gmd}EX_Extent/{http://www.isotc211.org/2005/gmd}temporalElement/{http://www.isotc211.org/2005/gmd}EX_TemporalExtent/{http://www.isotc211.org/2005/gmd}extent/{http://www.opengis.net/gml}TimePeriod/{http://www.opengis.net/gml}endPosition',template_root.nsmap)
         if 'StopTime' in current_metadata.keys():#sentinel 2 products sometimes dont have stoptime
@@ -450,8 +626,10 @@ class SentinelMetadataExtractor:
         
         #link for the resource described in the metadata
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}distributionInfo/{http://www.isotc211.org/2005/gmd}MD_Distribution/{http://www.isotc211.org/2005/gmd}transferOptions/{http://www.isotc211.org/2005/gmd}MD_DigitalTransferOptions/{http://www.isotc211.org/2005/gmd}onLine/{http://www.isotc211.org/2005/gmd}CI_OnlineResource/{http://www.isotc211.org/2005/gmd}linkage/{http://www.isotc211.org/2005/gmd}URL',template_root.nsmap)
-        find[0].text = '' #TODO       
+        find[0].text = current_metadata['downloadLink']      
         
+
+            
         if writeToFile:
           output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml' #remove .manifest.safe , add .xml
           template_tree.write(output_filename, pretty_print=True) 

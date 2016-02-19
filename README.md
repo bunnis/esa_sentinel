@@ -5,9 +5,20 @@ Program written in python to parse xml product metadata from ESA Sentinel Produc
 ```
 from sentinel_manifest_metadata_extractor import SentinelMetadataExtractor
 
-sentinel = SentinelMetadataExtractor("/tmp/harvested/manifests/")
-sentinel.extractMetadata()
-sentinel.checkAllFilesParsed() #prints a report of errors
+location = "/tmp/harvested/manifests/"
+
+sentinel = SentinelMetadataExtractor(location)
+
+#get metadata from manifests files located at 'location'
+sentinel.extractMetadataFromManifestFiles()
+sentinel.checkAllFilesParsed() #prints a report of errors for files
+
+#API metadata extraction
+#if downloadManifests is true, then download to 'location'
+DHUS_USER ='someuser'
+DHUS_pass='somepass'
+sentinel.extractMetadataFromAPIForToday(downloadManifests = False,user=DHUS_USER, password=DHUS_pass,outputFolder = location)
+
 
 #the actual metadata, dict in which keys are the filenames in lowercase, values are a dict of keys,values
 metadata = sentinel.getProductsMetadata() 
