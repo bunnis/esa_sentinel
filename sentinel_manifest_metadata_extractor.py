@@ -558,7 +558,7 @@ class SentinelMetadataExtractor:
 
         #uuid
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}citation/{http://www.isotc211.org/2005/gmd}CI_Citation/{http://www.isotc211.org/2005/gmd}identifier/{http://www.isotc211.org/2005/gmd}RS_Identifier/{http://www.isotc211.org/2005/gmd}code/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
-        find[0].text = str(uuid)      
+        find[0].text = current_metadata['uuid']     
         
         #abstract
         find = template_root.findall('./{http://www.isotc211.org/2005/gmd}identificationInfo/{http://www.isotc211.org/2005/gmd}MD_DataIdentification/{http://www.isotc211.org/2005/gmd}abstract/{http://www.isotc211.org/2005/gco}CharacterString',template_root.nsmap)
