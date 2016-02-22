@@ -36,26 +36,6 @@ class SentinelMetadataExtractor:
   def __init__(self, filepath=FILEPATH):
     self.filepath = filepath
     
-  def _transformSolrCoordsToSAFECoords(self, coords):
-    '''receives coordinates in solr format and parses to the one in SAFE format for further processing
-    FROM #POLYGON ((123.3108 8.0611,123.0589 9.3117,120.8469 9.0181,121.1061 7.7648,123.3108 8.0611,123.3108 8.0611))
-    TO 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
-    '''
-    
-    #remove (( and )), split by commas
-    coords_split = str(re.findall("POLYGON\s\D\D(.*)\D\D", coords)).split(',')
-    
-    #add commas in whitespaces, and a whitespace to separate each pair, result is something like this 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
-    coords_united = ''
-    for c in range(0,len(coords_split)):
-      replaced = coords_split[c].replace(" ", ",")
-      
-      coords_united = coords_united + replaced
-      if c != (len(coords_split)-1):
-        coords_united = coords_united +" "
-
-    return coords_united
-  
   
   def _downloadProduct(self,filename,link,outputFolder,user=DHUS_USER, password=DHUS_PASS):
     '''download product and shows a progress bar'''
@@ -260,8 +240,33 @@ class SentinelMetadataExtractor:
         
     print "All Done"
 
+
+  def _transformSolrCoordsToSAFECoords(self, coords):
+    '''receives coordinates in solr format and parses to the one in SAFE format for further processing
+    FROM #POLYGON ((123.3108 8.0611,123.0589 9.3117,120.8469 9.0181,121.1061 7.7648,123.3108 8.0611,123.3108 8.0611))
+    TO 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
+    '''
+    
+    #remove (( and )), split by commas
+    regexed = re.findall("POLYGON\s\D\D(.*)\D\D", coords)[0] #[0], grab first (and only) group
+    coords_split = regexed.split(',')
+    #coords_split = str(re.findall("POLYGON\s\D\D(.*)\D\D", coords)).split(',')
+    
+    #add commas in whitespaces, and a whitespace to separate each pair, result is something like this 8.0611,123.3108 9.3117,123.0589 9.0181,120.8469 7.7648,121.1061 8.0611,123.3108
+    coords_united = ''
+    for c in range(0,len(coords_split)):
+      replaced = coords_split[c].replace(" ", ",")
+      
+      coords_united = coords_united + replaced
+      if c != (len(coords_split)-1):
+        coords_united = coords_united +" "
+
+    return str(coords_united)
+
   def _parseCoordinates(self,coordinates):
     '''parse coordinates to a json format[[[lat1,long1],[lat2,long2],...]]'''
+    #in '58.893013,-65.056816 59.638775,-57.844292 55.804028,-56.761806 55.089973,-63.272209'
+    #out [['58.893013', '-65.056816'], ['59.638775', '-57.844292'], ['55.804028', '-56.761806'], ['55.089973', '-63.272209']]
     final_list = []
     coordsx=[] #lat
     coordsy=[] #long
