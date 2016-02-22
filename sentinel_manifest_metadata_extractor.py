@@ -632,7 +632,7 @@ class SentinelMetadataExtractor:
 
             
         if writeToFile:
-          output_filename = output_folder+metadata_key.upper().split('.')[0]+'.xml' #remove .manifest.safe , add .xml
+          output_filename = outputFolder+metadata_key.upper().split('.')[0]+'.xml' #remove .manifest.safe , add .xml
           template_tree.write(output_filename, pretty_print=True) 
           
         return template_tree
