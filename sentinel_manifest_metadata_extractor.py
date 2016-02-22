@@ -43,7 +43,7 @@ class SentinelMetadataExtractor:
 
     with open(filename, "wb") as f:
       print "Downloading %s" % filename
-      response = requests.get(link, stream=True, auth=HTTPBasicAuth(user, password))
+      response = requests.get(link, stream=True, auth=HTTPBasicAuth(user, password),verify=True)
       total_length = response.headers.get('content-length')
 
       if total_length is None: # no content length header
@@ -79,7 +79,7 @@ class SentinelMetadataExtractor:
     ##first request to get total results
     url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]"
 
-    r = requests.get(url, auth=HTTPBasicAuth(user, password))
+    r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=True)
     if r.status_code != 200:
       print 'Wrong authentication? status code != 200'
       return None
@@ -93,7 +93,7 @@ class SentinelMetadataExtractor:
     for i in range(0, int(total_results), 100):
       url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]&start="+str(i)+"&rows=99"
 
-      r = requests.get(url, auth=HTTPBasicAuth(user, password))
+      r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=True)
       xml = minidom.parseString(r.text)
 
       products=xml.getElementsByTagName("entry")
@@ -141,10 +141,7 @@ class SentinelMetadataExtractor:
                 metadata['InstrumentFamilyName'] = node.firstChild.data
                        
               if value=="instrumentname": 
-                metadata['instrumentname'] = node.firstChild.data
-                       
-              if value=="footprint": 
-                metadata['StartTime'] = node.firstChild.data     
+                metadata['InstrumentName'] = node.firstChild.data
                 
               if value=="polarisationmode": 
                 metadata['TransmitterReceiverPolarisation'] = node.firstChild.data
