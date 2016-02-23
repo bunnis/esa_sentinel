@@ -87,7 +87,7 @@ class SentinelMetadataExtractor:
     #print r.text
     xml = minidom.parseString(r.text)
     total_results = xml.getElementsByTagName("opensearch:totalResults")[0].firstChild.data
-    total_results = str(10)
+    #total_results = str(10)
     print 'found ' +total_results +' results'
 
     for i in range(0, int(total_results), 100):
