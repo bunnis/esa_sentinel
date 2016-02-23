@@ -63,117 +63,119 @@ class SentinelMetadataExtractor:
     '''queries the dhus api and uses its metadata,
     can download manifests and stores the manifests at specified location (filepath on init)'''
     #odata - url = "https://scihub.copernicus.eu/apihub/odata/v1/Products?$filter=year(IngestionDate) eq 2016 and month(IngestionDate) eq 02 and day(IngestionDate) eq 1&$skip=0&$top=99"
- 
+
     if downloadManifests: #if folder doesnt exist and we want to write to file, exit
       if not self._folderExists(outputFolder):
-        return None 
- 
+        return None
+
     today = time.strftime('%Y-%m-%d')
     yesterday_d = date.today() - timedelta(1)
     yesterday = yesterday_d.strftime('%Y-%m-%d')
     NOW = str(today)+'T00:00:00.000Z'#Thh:mm:ss.SSSZ
     YESTERDAY = str(yesterday)+'T00:00:00.000Z'#Thh:mm:ss.SSSZ
-    metadata = {}
-    
-   
+
+
+
     ##first request to get total results
     url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]"
 
-    r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=True)
+    r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=False)
     if r.status_code != 200:
       print 'Wrong authentication? status code != 200'
       return None
-    
+
     #print r.text
     xml = minidom.parseString(r.text)
     total_results = xml.getElementsByTagName("opensearch:totalResults")[0].firstChild.data
-    
+    total_results = str(10)
     print 'found ' +total_results +' results'
 
     for i in range(0, int(total_results), 100):
       url = "https://scihub.copernicus.eu/dhus/search?q=ingestionDate:["+YESTERDAY+" TO "+NOW+"]&start="+str(i)+"&rows=99"
 
-      r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=True)
+      r = requests.get(url, auth=HTTPBasicAuth(user, password),verify=False)
       xml = minidom.parseString(r.text)
 
       products=xml.getElementsByTagName("entry")
 
+
       for prod in products:
+          metadata = {}
           ident=prod.getElementsByTagName("id")[0].firstChild.data
           #print ident
           link=prod.getElementsByTagName("link")[0].attributes.items()[0][1]
           #print link
           title=prod.getElementsByTagName("title")[0].firstChild.data
           #print title
-          
+
           metadata['uuid'] = ident
+          print metadata['uuid']
           metadata['downloadLink'] = link
           metadata['thumbnail'] = "https://"+user+":"+password+"@scihub.copernicus.eu/apihub/odata/v1/Products('"+ident+"')/Products('Quicklook')/$value"
-          
+
           if downloadManifests:
             self._downloadProduct(title.lower()+'.SAFE.zip',link,outputFolder,user,password)
-          
-          
+
           for node in prod.getElementsByTagName("date"):
               (name,value)=node.attributes.items()[0]
-          
-              if value=="beginposition": 
+
+              if value=="beginposition":
                   metadata['StartTime'] = node.firstChild.data
 
-              if value=="endposition": 
+              if value=="endposition":
                   metadata['StopTime'] = node.firstChild.data
-          
-          
+
+
           for node in prod.getElementsByTagName("str"):
               (name,value)=node.attributes.items()[0]
               #metadata[value]=''
-              
+
               #print name,value
               if value=="filename":
                   #filename= str(node.toxml()).split('>')[1].split('<')[0]#ugly, but minidom is not straightforward
                   filename = node.firstChild.data
                   metadata['manifestLink'] = "https://scihub.copernicus.eu/apihub/odata/v1/Products('" + ident +"')/Nodes('"+filename+"')/Nodes('manifest.safe')/$value"
-                  
-              if value=="footprint": 
+
+              if value=="footprint":
                   #assuming all footprints are polygons
                   footprint = node.firstChild.data
                   metadata['Coordinates'] = self._parseCoordinates(self._transformSolrCoordsToSAFECoords(footprint))
-                  
-              if value=="platformname": 
+
+              if value=="platformname":
                 metadata['FamilyName'] = node.firstChild.data
 
-              if value=="instrumentshortname": 
+              if value=="instrumentshortname":
                 metadata['InstrumentFamilyName'] = node.firstChild.data
-                       
-              if value=="instrumentname": 
-                metadata['InstrumentName'] = node.firstChild.data
-                
-              if value=="polarisationmode": 
-                metadata['TransmitterReceiverPolarisation'] = node.firstChild.data
-                
-              if value=="sensoroperationalmode": 
-                metadata['InstrumentMode'] = node.firstChild.data  
-                
-              if value=="productclass": 
-                metadata['ProductClass'] = node.firstChild.data   
-                
-              if value=="producttype": 
-                metadata['ProductType'] = node.firstChild.data   
-                
-              if value=="productconsolidation": 
-                metadata['ProductConsolidation'] = node.firstChild.data   
-                
-              if value=="acquisitiontype": 
-                metadata['AcquisitionType'] = node.firstChild.data  
-                
-              if value=="orbitdirection": 
-                metadata['OrbitDirection'] = node.firstChild.data     
-                
-              if value=="swathidentifier": 
-                metadata['Swath'] = node.firstChild.data                    
-                
 
-          self.productMetadata[title.lower()+'.manifest.safe'] =metadata #.manifest.safe to mantain consistency across class
+              if value=="instrumentname":
+                metadata['InstrumentName'] = node.firstChild.data
+
+              if value=="polarisationmode":
+                metadata['TransmitterReceiverPolarisation'] = node.firstChild.data
+
+              if value=="sensoroperationalmode":
+                metadata['InstrumentMode'] = node.firstChild.data
+
+              if value=="productclass":
+                metadata['ProductClass'] = node.firstChild.data
+
+              if value=="producttype":
+                metadata['ProductType'] = node.firstChild.data
+
+              if value=="productconsolidation":
+                metadata['ProductConsolidation'] = node.firstChild.data
+
+              if value=="acquisitiontype":
+                metadata['AcquisitionType'] = node.firstChild.data
+
+              if value=="orbitdirection":
+                metadata['OrbitDirection'] = node.firstChild.data
+
+              if value=="swathidentifier":
+                metadata['Swath'] = node.firstChild.data
+
+
+          self.productMetadata[title.lower()+'.manifest.safe'] = metadata #.manifest.safe to mantain consistency across class
 
     print 'finished parsing api results'
     
