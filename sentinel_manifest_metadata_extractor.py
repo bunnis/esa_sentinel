@@ -113,6 +113,17 @@ class SentinelMetadataExtractor:
           if downloadManifests:
             self._downloadProduct(title.lower()+'.SAFE.zip',link,outputFolder,user,password)
           
+          
+          for node in prod.getElementsByTagName("date"):
+              (name,value)=node.attributes.items()[0]
+          
+              if value=="beginposition": 
+                  metadata['StartTime'] = node.firstChild.data
+
+              if value=="endposition": 
+                  metadata['StopTime'] = node.firstChild.data
+          
+          
           for node in prod.getElementsByTagName("str"):
               (name,value)=node.attributes.items()[0]
               #metadata[value]=''
@@ -128,12 +139,6 @@ class SentinelMetadataExtractor:
                   footprint = node.firstChild.data
                   metadata['Coordinates'] = self._parseCoordinates(self._transformSolrCoordsToSAFECoords(footprint))
                   
-              if value=="beginposition": 
-                  metadata['StartTime'] = node.firstChild.data
-
-              if value=="endposition": 
-                  metadata['StopTime'] = node.firstChild.data
-                
               if value=="platformname": 
                 metadata['FamilyName'] = node.firstChild.data
 
